@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Amado Maker • Central de Pedidos</title>
+  <meta name="description" content="Central de pedidos Amado Maker - formulário profissional com envio automático por e-mail." />
+
+  <!-- Supabase (defer pra não travar o render) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{
+      --orange:#FA7323;
+      --orange2:#FF9A4A;
+      --purple:#822D95;
+
+      --bg:#ffffff;
+      --text:#0b0f14;
+      --muted:#556173;
+      --line: rgba(130,45,149,.16);
+
+      --ok:#16a34a;
+      --bad:#e11d48;
+
+      --r:28px;
+      --shadow: 0 18px 45px rgba(16,24,40,.10);
+      --shadow2: 0 10px 22px rgba(16,24,40,.08);
+      --max: 1100px;
+
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(900px 520px at 10% 0%, rgba(250,115,35,.16), transparent 60%),
+        radial-gradient(900px 640px at 90% 10%, rgba(130,45,149,.14), transparent 60%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+
+    a{color:inherit; text-decoration:none}
+    .container{max-width:var(--max); margin:0 auto; padding:18px 14px}
+
+    /* Header */
+    header{
+      position:sticky; top:0; z-index:50;
+      backdrop-filter: blur(12px);
+      background: rgba(255,255,255,.78);
+      border-bottom:1px solid rgba(130,45,149,.14);
+    }
+    .hRow{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; flex-wrap:wrap;
+    }
+
+    /* Logo (só imagem e maior) */
+    .brandLogoOnly{
+      display:flex;
+      align-items:center;
+      padding:0;
+      border:0;
+      background:transparent;
+      box-shadow:none;
+    }
+    .logoImg{
+      height:72px;
+      width:auto;
+      display:block;
+      object-fit:contain;
+    }
+
+    .nav{
+      display:flex; gap:10px; align-items:center;
+      flex-wrap:wrap;
+      margin-left:auto;
+    }
+
+    /* Buttons */
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius: 18px;
+      padding:12px 16px;
+      border:1px solid rgba(250,115,35,.55);
+      background: rgba(250,115,35,.10);
+      color: #7a2a00;
+      cursor:pointer;
+      font-weight:900;
+      transition: transform .10s ease, box-shadow .15s ease, background .15s ease, opacity .15s ease;
+      user-select:none;
+      min-height:46px;
+      gap:10px;
+    }
+    .btn:hover{transform: translateY(-1px); box-shadow: 0 10px 18px rgba(250,115,35,.18)}
+    .btn:active{transform: translateY(0px)}
+    .btn:disabled{opacity:.65; cursor:not-allowed; transform:none; box-shadow:none}
+
+    .btnOrange{
+      background: linear-gradient(180deg, rgba(250,115,35,.95), rgba(250,115,35,.82));
+      border-color: rgba(250,115,35,.95);
+      color:#fff;
+      box-shadow: 0 14px 22px rgba(250,115,35,.22);
+    }
+    .btnGhost{
+      border-color: rgba(130,45,149,.30);
+      background: rgba(130,45,149,.07);
+      color: rgba(130,45,149,.95);
+      box-shadow: 0 10px 18px rgba(130,45,149,.10);
+    }
+
+    /* Layout: formulário ocupa a tela */
+    main{
+      min-height: calc(100vh - 92px);
+      display:flex;
+      align-items:stretch;
+    }
+    .formWrap{width:100%; display:flex; align-items:stretch;}
+
+    .card{
+      width:100%;
+      background: #fff;
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(130,45,149,.14);
+      overflow:hidden;
+      align-self:stretch;
+    }
+
+    .cardHead{
+      padding:18px 18px 14px;
+      border-bottom:1px solid rgba(130,45,149,.14);
+      background: linear-gradient(180deg, rgba(250,115,35,.06), rgba(130,45,149,.04));
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      flex-wrap:wrap;
+    }
+    .cardHead h2{margin:0; font-size:16px; letter-spacing:-.01em; color:#141a22}
+
+    form{padding:18px}
+
+    .section{
+      margin:16px 0 10px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .section h3{
+      margin:0;
+      font-size:12px;
+      letter-spacing:.12em;
+      text-transform: uppercase;
+      color: rgba(130,45,149,.95);
+      font-weight:950;
+    }
+    .sectionLine{height:1px; flex:1; background: rgba(130,45,149,.16);}
+
+    .grid2{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+    }
+    @media (max-width: 720px){
+      .grid2{grid-template-columns:1fr}
+    }
+
+    label{
+      display:block;
+      font-size:12px;
+      color: rgba(20,26,34,.85);
+      margin:0 0 6px;
+      font-weight:900;
+    }
+
+    input, textarea{
+      width:100%;
+      padding:12px 12px;
+      border-radius: 18px;
+      border:1px solid rgba(130,45,149,.18);
+      background: #fff;
+      color:#0b0f14;
+      outline:none;
+      transition: box-shadow .15s, border-color .15s, background .15s;
+    }
+    textarea{min-height:120px; resize:vertical}
+    input:focus, textarea:focus{
+      border-color: rgba(250,115,35,.70);
+      box-shadow: 0 0 0 4px rgba(250,115,35,.18);
+    }
+
+    /* Itens */
+    .itemsTop{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+      margin:10px 0 8px;
+    }
+    .itemsTop .hint{color:var(--muted); font-size:12px}
+
+    .items{display:flex; flex-direction:column; gap:10px}
+    .itemRow{
+      border:1px solid rgba(130,45,149,.14);
+      background: rgba(130,45,149,.03);
+      border-radius: 22px;
+      padding:12px;
+    }
+    .itemHeader{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; margin-bottom:10px;
+    }
+    .itemHeader b{font-size:13px; color:#141a22}
+
+    .removeBtn{
+      border:1px solid rgba(225,29,72,.25);
+      background: rgba(225,29,72,.06);
+      color:#b91c1c;
+      border-radius: 16px;
+      padding:10px 12px;
+      cursor:pointer;
+      font-weight:900;
+      min-height:40px;
+    }
+
+    .itemGrid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+    }
+    @media (max-width: 720px){
+      .itemGrid{grid-template-columns:1fr}
+    }
+
+    .itemObs{grid-column: 1 / -1;}
+    .itemObs textarea{min-height:160px;}
+
+    .submitRow{
+      margin-top:16px;
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    /* Toast simples */
+    .toastWrap{
+      position:fixed;
+      right:14px;
+      bottom:14px;
+      z-index:9999;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      width:min(420px, calc(100vw - 28px));
+    }
+    .toast{
+      border-radius: 18px;
+      border:1px solid rgba(130,45,149,.16);
+      background:#fff;
+      box-shadow: 0 14px 30px rgba(16,24,40,.12);
+      padding:12px 12px;
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      overflow:hidden;
+      position:relative;
+    }
+    .toast:before{
+      content:"";
+      position:absolute;
+      left:0; top:0; bottom:0;
+      width:5px;
+      background: var(--purple);
+      opacity:.85;
+    }
+    .toast.ok:before{background: var(--ok)}
+    .toast.bad:before{background: var(--bad)}
+    .toast .tTitle{font-weight:950; font-size:13px; margin:0}
+    .toast .tMsg{margin:2px 0 0; color: var(--muted); font-size:12px; line-height:1.35}
+    .toast .tClose{
+      margin-left:auto;
+      border:0;
+      background:transparent;
+      cursor:pointer;
+      font-weight:950;
+      color: rgba(20,26,34,.6);
+    }
+
+    /* Spinner */
+    .spinner{
+      width:16px;height:16px;border-radius:999px;
+      border:2px solid rgba(255,255,255,.55);
+      border-top-color: rgba(255,255,255,.95);
+      animation: spin .9s linear infinite;
+      display:none;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .isLoading .spinner{display:inline-block}
+
+    @media (max-width: 520px){
+      .logoImg{height:58px;}
+      .nav{width:100%}
+      .btn{width:100%}
+      main{min-height: calc(100vh - 140px);}
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="container hRow">
+      <a class="brandLogoOnly" href="#" aria-label="Amado Maker - Central de Pedidos">
+        <img class="logoImg" alt="Amado Maker" src="logo.png" />
+      </a>
+
+      <div class="nav">
+        <a class="btn btnOrange" id="contactBtn" href="#" rel="noopener">Entrar em contato</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container formWrap">
+    <section class="card" aria-label="Formulário de pedido">
+      <div class="cardHead">
+        <h2>Formulário de pedido</h2>
+      </div>
+
+      <form id="pedidoForm" novalidate>
+        <div class="section">
+          <h3>Solicitante</h3><div class="sectionLine"></div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>Nome do solicitante</label>
+            <input name="nome_solicitante" required placeholder="Ex: Carlos" />
+          </div>
+          <div>
+            <label>E-mail do solicitante</label>
+            <input name="email_solicitante" type="email" required placeholder="Ex: cliente@dominio.com" />
+          </div>
+          <div>
+            <label>Cidade</label>
+            <input name="cidade_solicitante" required placeholder="Ex: Sorocaba" />
+          </div>
+          <div>
+            <label>Estado (UF)</label>
+            <input name="estado_solicitante" required maxlength="2" placeholder="SP" />
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <label>Observação</label>
+            <textarea name="observacao" placeholder="Opcional"></textarea>
+          </div>
+        </div>
+
+        <div class="section" style="margin-top:18px;">
+          <h3>Itens do pedido</h3><div class="sectionLine"></div>
+        </div>
+
+        <div class="itemsTop">
+          <div class="hint">Use “Adicionar item” para inserir Produto 1, 2, 3…</div>
+          <button class="btn btnGhost" type="button" id="addItemBtn">+ Adicionar item</button>
+        </div>
+
+        <div id="itensWrap" class="items"></div>
+
+        <div class="section" style="margin-top:18px;">
+          <h3>Entrega</h3><div class="sectionLine"></div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>Nome do destinatário</label>
+            <input name="nome_destinatario" required placeholder="Ex: João Silva" />
+          </div>
+          <div>
+            <label>CPF</label>
+            <input name="cpf" required placeholder="000.000.000-00" inputmode="numeric" />
+          </div>
+          <div>
+            <label>Endereço</label>
+            <input name="endereco" required placeholder="Rua X" />
+          </div>
+          <div>
+            <label>Número</label>
+            <input name="numero" required placeholder="123" />
+          </div>
+          <div>
+            <label>Complemento</label>
+            <input name="complemento" placeholder="Opcional" />
+          </div>
+          <div>
+            <label>Bairro</label>
+            <input name="bairro" required placeholder="Centro" />
+          </div>
+          <div>
+            <label>Cidade</label>
+            <input name="cidade_entrega" required placeholder="Sorocaba" />
+          </div>
+          <div>
+            <label>Estado (UF)</label>
+            <input name="estado_entrega" required maxlength="2" placeholder="SP" />
+          </div>
+          <div>
+            <label>CEP</label>
+            <input name="cep" required placeholder="00000-000" inputmode="numeric" />
+          </div>
+          <div>
+            <label>Anexo (imagem / PDF / Word)</label>
+            <input type="file" name="anexo"
+              accept="image/*,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          </div>
+        </div>
+
+        <div class="submitRow">
+          <button class="btn btnOrange" type="submit" id="submitBtn">
+            <span class="spinner"></span>
+            Enviar pedido
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div class="toastWrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    // =========================
+    // CONFIGURE AQUI (obrigatório)
+    // =========================
+    const SUPABASE_URL = "https://ytsgifxcwjrnvbnhgcvi.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_h6jSKguCWOtzsMHvKtFuCA_z5Odn7GE";
+    const STORAGE_BUCKET = "diagnosticos";
+    const EDGE_SEND_EMAIL_URL = "https://ytsgifxcwjrnvbnhgcvi.supabase.co/functions/v1/send-order-email";
+
+    // WhatsApp
+    const WHATSAPP_NUMBER = "5515997216059";
+    const WHATSAPP_MESSAGE = "Olá! Vim pela Central de Pedidos da Amado Maker.";
+
+    // =========================
+    // Toast
+    // =========================
+    const toastWrap = document.getElementById("toastWrap");
+    function toast(type, title, msg, timeout=4500){
+      const el = document.createElement("div");
+      el.className = `toast ${type}`;
+      el.innerHTML = `
+        <div>
+          <p class="tTitle">${title}</p>
+          <p class="tMsg">${msg}</p>
+        </div>
+        <button class="tClose" type="button">✕</button>
+      `;
+      el.querySelector(".tClose").addEventListener("click", ()=> el.remove());
+      toastWrap.appendChild(el);
+      if(timeout){
+        setTimeout(()=>{ if(el.isConnected) el.remove(); }, timeout);
+      }
+    }
+
+    // =========================
+    // Elements
+    // =========================
+    const form = document.getElementById("pedidoForm");
+    const itensWrap = document.getElementById("itensWrap");
+    const addItemBtn = document.getElementById("addItemBtn");
+    const submitBtn = document.getElementById("submitBtn");
+    const contactBtn = document.getElementById("contactBtn");
+
+    // WhatsApp link (sempre funciona)
+    contactBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+
+    function configured(){
+      return SUPABASE_URL.startsWith("http") &&
+             SUPABASE_ANON_KEY.startsWith("sb_") &&
+             EDGE_SEND_EMAIL_URL.startsWith("http");
+    }
+
+    // =========================
+    // Máscaras simples (CPF/CEP/UF)
+    // =========================
+    function onlyDigits(v){ return (v||"").replace(/\D+/g,""); }
+    function maskCPF(v){
+      const d = onlyDigits(v).slice(0,11);
+      let out = d;
+      if(d.length > 3) out = d.slice(0,3) + "." + d.slice(3);
+      if(d.length > 6) out = out.slice(0,7) + "." + d.slice(6);
+      if(d.length > 9) out = out.slice(0,11) + "-" + d.slice(9);
+      return out;
+    }
+    function maskCEP(v){
+      const d = onlyDigits(v).slice(0,8);
+      if(d.length <= 5) return d;
+      return d.slice(0,5) + "-" + d.slice(5);
+    }
+    function maskUF(v){
+      return (v||"").replace(/[^a-zA-Z]/g,"").slice(0,2).toUpperCase();
+    }
+
+    const cpfInput = form.querySelector('input[name="cpf"]');
+    const cepInput = form.querySelector('input[name="cep"]');
+    const ufSol = form.querySelector('input[name="estado_solicitante"]');
+    const ufEnt = form.querySelector('input[name="estado_entrega"]');
+
+    cpfInput.addEventListener("input", ()=> cpfInput.value = maskCPF(cpfInput.value));
+    cepInput.addEventListener("input", ()=> cepInput.value = maskCEP(cepInput.value));
+    ufSol.addEventListener("input", ()=> ufSol.value = maskUF(ufSol.value));
+    ufEnt.addEventListener("input", ()=> ufEnt.value = maskUF(ufEnt.value));
+
+    // =========================
+    // Supabase init
+    // =========================
+    async function waitSupabaseLoaded(){
+      for(let i=0;i<60;i++){
+        if(window.supabase) return true;
+        await new Promise(r => setTimeout(r, 50));
+      }
+      return false;
+    }
+
+    async function initSupabaseClient(){
+      const ok = await waitSupabaseLoaded();
+      if(!ok) return null;
+      if(!configured()) return null;
+      try{
+        return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }catch(_){
+        return null;
+      }
+    }
+
+    // =========================
+    // Itens dinâmicos (FUNCIONANDO)
+    // =========================
+    let itemCount = 0;
+
+    function itemTemplate(index){
+      const n = index + 1;
+      return `
+        <div class="itemRow">
+          <div class="itemHeader">
+            <b>Produto ${n}</b>
+            <button type="button" class="removeBtn">Remover</button>
+          </div>
+
+          <div class="itemGrid">
+            <div>
+              <label>Nome do produto</label>
+              <input name="produto_${index}" required placeholder="Ex: Correia GT2" />
+            </div>
+            <div>
+              <label>Equipamento</label>
+              <input name="equipamento_${index}" required placeholder="Ex: Impressora 3D" />
+            </div>
+            <div>
+              <label>Quantidade</label>
+              <input name="quantidade_${index}" required inputmode="numeric" placeholder="Ex: 2" />
+            </div>
+
+            <div class="itemObs">
+              <label>Observação do item</label>
+              <textarea name="obs_item_${index}" placeholder="Cor, tamanho, modelo, detalhes..."></textarea>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renumber(){
+      Array.from(itensWrap.querySelectorAll(".itemRow")).forEach((row, i)=>{
+        row.querySelector("b").textContent = `Produto ${i+1}`;
+      });
+    }
+
+    function addItem(){
+      const div = document.createElement("div");
+      div.innerHTML = itemTemplate(itemCount).trim();
+      const row = div.firstChild;
+
+      row.querySelector(".removeBtn").addEventListener("click", ()=>{
+        row.remove();
+        renumber();
+      });
+
+      itensWrap.appendChild(row);
+      itemCount++;
+      renumber();
+    }
+
+    function collectItens(){
+      const rows = Array.from(itensWrap.querySelectorAll(".itemRow"));
+      if(rows.length === 0) throw new Error("Adicione pelo menos 1 item.");
+
+      return rows.map((row, i)=>{
+        const produto = row.querySelector(`input[name^="produto_"]`).value.trim();
+        const equipamento = row.querySelector(`input[name^="equipamento_"]`).value.trim();
+        const qtdRaw = row.querySelector(`input[name^="quantidade_"]`).value.trim();
+        const obs = row.querySelector(`textarea[name^="obs_item_"]`).value.trim() || null;
+
+        const qtd = Number(onlyDigits(qtdRaw) || qtdRaw);
+
+        if(!produto) throw new Error(`Preencha o Nome do produto do Produto ${i+1}.`);
+        if(!equipamento) throw new Error(`Preencha o Equipamento do Produto ${i+1}.`);
+        if(!Number.isFinite(qtd) || qtd <= 0) throw new Error(`Quantidade inválida no Produto ${i+1}.`);
+
+        return { descricao: produto, unidade_medida: equipamento, quantidade: qtd, observacao_item: obs };
+      });
+    }
+
+    async function postJSON(url, payload){
+      const res = await fetch(url, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(payload),
+      });
+      if(!res.ok){
+        const t = await res.text().catch(()=> "");
+        throw new Error(t || `Erro HTTP ${res.status}`);
+      }
+      return await res.json().catch(()=> ({}));
+    }
+
+    async function uploadAnexo(supabaseClient, file, pedidoId){
+      if(!file) return null;
+      const safeName = (file.name || "anexo").replace(/[^\w.\-]+/g, "_");
+      const path = `${pedidoId}/${crypto.randomUUID()}_${safeName}`;
+
+      const { error } = await supabaseClient.storage.from(STORAGE_BUCKET)
+        .upload(path, file, { upsert:false, contentType:file.type });
+
+      if(error) throw error;
+
+      const { data } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      return data.publicUrl;
+    }
+
+    // BOOT: liga o botão e cria o primeiro item (isso garante que tudo funciona)
+    window.addEventListener("DOMContentLoaded", ()=>{
+      addItemBtn.addEventListener("click", addItem);
+      addItem(); // começa com 1 item sempre
+    });
+
+    // =========================
+    // Submit (mantém seu fluxo original)
+    // =========================
+    form.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+
+      if(!configured()){
+        toast("bad", "Configuração", "SUPABASE_URL / ANON_KEY / EDGE_SEND_EMAIL_URL estão inválidos.");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.classList.add("isLoading");
+
+      try{
+        const supabaseClient = await initSupabaseClient();
+        if(!supabaseClient){
+          throw new Error("Supabase não inicializou. Verifique a ANON KEY e o carregamento do CDN.");
+        }
+
+        const fd = new FormData(form);
+
+        const pedido = {
+          nome_solicitante: String(fd.get("nome_solicitante")||"").trim(),
+          email_solicitante: String(fd.get("email_solicitante")||"").trim(),
+          cidade: String(fd.get("cidade_solicitante")||"").trim(),
+          estado: maskUF(String(fd.get("estado_solicitante")||"")),
+          observacao: String(fd.get("observacao")||"").trim() || null
+        };
+
+        if(!pedido.nome_solicitante || !pedido.email_solicitante || !pedido.cidade || !pedido.estado){
+          throw new Error("Preencha os dados do solicitante (incluindo e-mail, cidade e UF).");
+        }
+
+        const itens = collectItens();
+
+        const entrega = {
+          nome_destinatario: String(fd.get("nome_destinatario")||"").trim(),
+          cpf: String(fd.get("cpf")||"").trim(),
+          endereco: String(fd.get("endereco")||"").trim(),
+          numero: String(fd.get("numero")||"").trim(),
+          complemento: String(fd.get("complemento")||"").trim() || null,
+          bairro: String(fd.get("bairro")||"").trim(),
+          cidade: String(fd.get("cidade_entrega")||"").trim(),
+          estado: maskUF(String(fd.get("estado_entrega")||"")),
+          cep: String(fd.get("cep")||"").trim(),
+        };
+
+        // 1) cria pedido
+        const { data: pedidoRow, error: pedidoErr } = await supabaseClient
+          .from("pedidos")
+          .insert({
+            nome_solicitante: pedido.nome_solicitante,
+            email_solicitante: pedido.email_solicitante,
+            cidade: pedido.cidade,
+            estado: pedido.estado,
+            observacao: pedido.observacao
+          })
+          .select("id")
+          .single();
+
+        if(pedidoErr) throw pedidoErr;
+        const pedidoId = pedidoRow.id;
+
+        // 2) itens (mantém sua tabela original)
+        const { error: itensErr } = await supabaseClient
+          .from("itens_pedido")
+          .insert(itens.map(i => ({
+            pedido_id: pedidoId,
+            descricao: i.descricao,
+            unidade_medida: i.unidade_medida,
+            quantidade: i.quantidade
+          })));
+        if(itensErr) throw itensErr;
+
+        // 3) entrega
+        const { error: entregaErr } = await supabaseClient
+          .from("entrega")
+          .insert({ ...entrega, pedido_id: pedidoId });
+        if(entregaErr) throw entregaErr;
+
+        // 4) upload anexo
+        const file = fd.get("anexo");
+        let anexo_url = null;
+        if(file && file instanceof File && file.size > 0){
+          anexo_url = await uploadAnexo(supabaseClient, file, pedidoId);
+          await supabaseClient.from("pedidos").update({ diagnostico_url: anexo_url }).eq("id", pedidoId);
+        }
+
+        // 5) envia e-mail (Edge Function) — inclui observacao_item no payload
+        await postJSON(EDGE_SEND_EMAIL_URL, {
+          pedido_id: pedidoId,
+          solicitante: pedido,
+          itens,
+          entrega,
+          anexo_url
+        });
+
+        toast("ok", "Tudo certo!", "Pedido enviado com sucesso ✅");
+        form.reset();
+        itensWrap.innerHTML = "";
+        itemCount = 0;
+        addItem();
+
+      }catch(err){
+        console.error(err);
+        toast("bad", "Erro ao enviar", err?.message || "Erro desconhecido.");
+      }finally{
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("isLoading");
+      }
+    });
+  </script>
+</body>
+</html>
