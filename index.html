@@ -9,6 +9,9 @@
   <!-- Supabase (defer pra não travar o render) -->
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <!-- jsPDF (para gerar comprovante PDF no navegador) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
   <style>
     :root{
       --orange:#FA7323;
@@ -87,7 +90,7 @@
       align-items:center;
       justify-content:center;
       border-radius: 18px;
-      padding:12px 16px;
+      padding:12px 14px;
       border:1px solid rgba(250,115,35,.55);
       background: rgba(250,115,35,.10);
       color: #7a2a00;
@@ -97,6 +100,7 @@
       user-select:none;
       min-height:46px;
       gap:10px;
+      white-space:nowrap;
     }
     .btn:hover{transform: translateY(-1px); box-shadow: 0 10px 18px rgba(250,115,35,.18)}
     .btn:active{transform: translateY(0px)}
@@ -113,6 +117,16 @@
       background: rgba(130,45,149,.07);
       color: rgba(130,45,149,.95);
       box-shadow: 0 10px 18px rgba(130,45,149,.10);
+    }
+
+    /* Botão Contato (base) */
+    #contactBtn{
+      min-height:40px;
+      padding:10px 12px;
+      border-radius:16px;
+      font-size:14px;
+      line-height:1;
+      max-width: 100%;
     }
 
     /* Layout: formulário ocupa a tela */
@@ -243,6 +257,18 @@
       flex-wrap:wrap;
     }
 
+    .submitRow .btn{
+      min-height:46px;
+    }
+    @media (max-width: 520px){
+      .submitRow{
+        justify-content:stretch;
+      }
+      .submitRow .btn{
+        width:100%;
+      }
+    }
+
     /* Toast simples */
     .toastWrap{
       position:fixed;
@@ -298,11 +324,120 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .isLoading .spinner{display:inline-block}
 
+    /* =========================
+       ✅ AJUSTE DO BOTÃO CONTATO NO CELULAR (ÚNICA MUDANÇA)
+       ========================= */
     @media (max-width: 520px){
       .logoImg{height:58px;}
-      .nav{width:100%}
-      .btn{width:100%}
+
+      /* não quebra linha no header */
+      .hRow{
+        flex-wrap: nowrap;
+        align-items: center;
+      }
+
+      /* logo ocupa o espaço e permite encolher */
+      .brandLogoOnly{
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      /* nav fica só no tamanho do botão, sem ir pra baixo */
+      .nav{
+        width: auto;
+        margin-left: auto;
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+      }
+
+      /* botão menor e não estoura */
+      #contactBtn{
+        min-height: 36px;
+        padding: 8px 10px;
+        border-radius: 14px;
+        font-size: 13px;
+      }
+
       main{min-height: calc(100vh - 140px);}
+    }
+
+    /* =========================
+       MODAL Endereços Salvos
+       ========================= */
+    .modalOverlay{
+      position:fixed;
+      inset:0;
+      background: rgba(11,15,20,.45);
+      backdrop-filter: blur(4px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+      z-index:9998;
+    }
+    .modalOverlay.show{display:flex;}
+
+    .modal{
+      width:min(520px, 100%);
+      background:#fff;
+      border:1px solid rgba(130,45,149,.18);
+      border-radius: 22px;
+      box-shadow: 0 22px 60px rgba(16,24,40,.20);
+      overflow:hidden;
+    }
+    .modalHead{
+      padding:14px 14px;
+      background: linear-gradient(180deg, rgba(250,115,35,.06), rgba(130,45,149,.04));
+      border-bottom:1px solid rgba(130,45,149,.14);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .modalHead b{font-size:14px;}
+    .modalClose{
+      border:0;
+      background:transparent;
+      cursor:pointer;
+      font-weight:950;
+      font-size:16px;
+      color: rgba(20,26,34,.60);
+      padding:8px 10px;
+      border-radius: 12px;
+    }
+    .modalBody{
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .modalBody p{
+      margin:0;
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.4;
+    }
+    .modalSelect{
+      width:100%;
+      padding:12px 12px;
+      border-radius: 18px;
+      border:1px solid rgba(130,45,149,.18);
+      background:#fff;
+      outline:none;
+      font-weight:700;
+    }
+    .modalActions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+      padding:0 14px 14px;
+    }
+    .btnSmall{
+      min-height:44px;
+      padding:10px 12px;
+      border-radius: 16px;
+      font-size:14px;
     }
   </style>
 </head>
@@ -311,11 +446,11 @@
   <header>
     <div class="container hRow">
       <a class="brandLogoOnly" href="#" aria-label="Amado Maker - Central de Pedidos">
-        <img class="logoImg" alt="Amado Maker" src="logo.png" />
+        <img class="logoImg" id="siteLogo" alt="Amado Maker" src="logo.png" />
       </a>
 
       <div class="nav">
-        <a class="btn btnOrange" id="contactBtn" href="#" rel="noopener">Entrar em contato</a>
+        <a class="btn btnOrange" id="contactBtn" href="#" rel="noopener">Contato</a>
       </div>
     </div>
   </header>
@@ -414,6 +549,8 @@
         </div>
 
         <div class="submitRow">
+          <button class="btn btnGhost" type="button" id="savedAddressesBtn">Endereços salvos</button>
+
           <button class="btn btnOrange" type="submit" id="submitBtn">
             <span class="spinner"></span>
             Enviar pedido
@@ -424,6 +561,27 @@
   </main>
 
   <div class="toastWrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Modal Endereços Salvos -->
+  <div class="modalOverlay" id="addrModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Endereços salvos">
+      <div class="modalHead">
+        <b>Endereços salvos</b>
+        <button class="modalClose" type="button" id="addrCloseBtn" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="modalBody">
+        <p>Selecione um endereço salvo e clique em <b>Aplicar endereço</b>. Ele vai preencher os campos de entrega.</p>
+
+        <select class="modalSelect" id="addrSelect"></select>
+      </div>
+
+      <div class="modalActions">
+        <button class="btn btnGhost btnSmall" type="button" id="addrCancelBtn">Cancelar</button>
+        <button class="btn btnOrange btnSmall" type="button" id="addrApplyBtn">Aplicar endereço</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // =========================
@@ -438,9 +596,23 @@
     const WHATSAPP_NUMBER = "5515997216059";
     const WHATSAPP_MESSAGE = "Olá! Vim pela Central de Pedidos da Amado Maker.";
 
-    // =========================
+    // ENDEREÇOS SALVOS (edite aqui)
+    const SAVED_ADDRESSES = [
+      {
+        label: "Welda Ferreira (Tauá-CE) - Secretaria de Educação",
+        nome_destinatario: "Welda Ferreira dos Santos",
+        cpf: "026.898.583-98",
+        endereco: "Av. Moacir Pereira Gondin - S/N",
+        numero: "0",
+        complemento: "Secretaria de Educação",
+        bairro: "Planaldo do Colibris",
+        cidade_entrega: "Tauá",
+        estado_entrega: "CE",
+        cep: "63660-000"
+      },
+    ];
+
     // Toast
-    // =========================
     const toastWrap = document.getElementById("toastWrap");
     function toast(type, title, msg, timeout=4500){
       const el = document.createElement("div");
@@ -459,16 +631,14 @@
       }
     }
 
-    // =========================
     // Elements
-    // =========================
     const form = document.getElementById("pedidoForm");
     const itensWrap = document.getElementById("itensWrap");
     const addItemBtn = document.getElementById("addItemBtn");
     const submitBtn = document.getElementById("submitBtn");
     const contactBtn = document.getElementById("contactBtn");
 
-    // WhatsApp link (sempre funciona)
+    // WhatsApp link
     contactBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
     function configured(){
@@ -477,9 +647,7 @@
              EDGE_SEND_EMAIL_URL.startsWith("http");
     }
 
-    // =========================
     // Máscaras simples (CPF/CEP/UF)
-    // =========================
     function onlyDigits(v){ return (v||"").replace(/\D+/g,""); }
     function maskCPF(v){
       const d = onlyDigits(v).slice(0,11);
@@ -508,9 +676,7 @@
     ufSol.addEventListener("input", ()=> ufSol.value = maskUF(ufSol.value));
     ufEnt.addEventListener("input", ()=> ufEnt.value = maskUF(ufEnt.value));
 
-    // =========================
     // Supabase init
-    // =========================
     async function waitSupabaseLoaded(){
       for(let i=0;i<60;i++){
         if(window.supabase) return true;
@@ -530,9 +696,7 @@
       }
     }
 
-    // =========================
-    // Itens dinâmicos (FUNCIONANDO)
-    // =========================
+    // Itens dinâmicos
     let itemCount = 0;
 
     function itemTemplate(index){
@@ -631,24 +795,243 @@
 
       if(error) throw error;
 
-      const { data } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      const { data } = (supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path));
       return data.publicUrl;
     }
 
-    // BOOT: liga o botão e cria o primeiro item (isso garante que tudo funciona)
-    window.addEventListener("DOMContentLoaded", ()=>{
-      addItemBtn.addEventListener("click", addItem);
-      addItem(); // começa com 1 item sempre
+    // Endereços Salvos (Modal)
+    const savedAddressesBtn = document.getElementById("savedAddressesBtn");
+    const addrModal = document.getElementById("addrModal");
+    const addrSelect = document.getElementById("addrSelect");
+    const addrCloseBtn = document.getElementById("addrCloseBtn");
+    const addrCancelBtn = document.getElementById("addrCancelBtn");
+    const addrApplyBtn = document.getElementById("addrApplyBtn");
+
+    function openAddrModal(){
+      addrSelect.innerHTML = "";
+      if(!SAVED_ADDRESSES.length){
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Nenhum endereço salvo";
+        addrSelect.appendChild(opt);
+        addrApplyBtn.disabled = true;
+      }else{
+        SAVED_ADDRESSES.forEach((a, idx)=>{
+          const opt = document.createElement("option");
+          opt.value = String(idx);
+          opt.textContent = a.label || `Endereço ${idx+1}`;
+          addrSelect.appendChild(opt);
+        });
+        addrApplyBtn.disabled = false;
+      }
+      addrModal.classList.add("show");
+    }
+
+    function closeAddrModal(){
+      addrModal.classList.remove("show");
+    }
+
+    function applyAddress(addr){
+      if(!addr) return;
+
+      form.querySelector('input[name="nome_destinatario"]').value = addr.nome_destinatario || "";
+      form.querySelector('input[name="cpf"]').value = addr.cpf ? maskCPF(addr.cpf) : "";
+      form.querySelector('input[name="endereco"]').value = addr.endereco || "";
+      form.querySelector('input[name="numero"]').value = addr.numero || "";
+      form.querySelector('input[name="complemento"]').value = addr.complemento || "";
+      form.querySelector('input[name="bairro"]').value = addr.bairro || "";
+      form.querySelector('input[name="cidade_entrega"]').value = addr.cidade_entrega || "";
+      form.querySelector('input[name="estado_entrega"]').value = addr.estado_entrega ? maskUF(addr.estado_entrega) : "";
+      form.querySelector('input[name="cep"]').value = addr.cep ? maskCEP(addr.cep) : "";
+
+      toast("ok", "Endereço aplicado", "Os campos de entrega foram preenchidos ✅");
+    }
+
+    savedAddressesBtn.addEventListener("click", openAddrModal);
+    addrCloseBtn.addEventListener("click", closeAddrModal);
+    addrCancelBtn.addEventListener("click", closeAddrModal);
+
+    addrApplyBtn.addEventListener("click", ()=>{
+      const idx = Number(addrSelect.value);
+      const addr = SAVED_ADDRESSES[idx];
+      applyAddress(addr);
+      closeAddrModal();
     });
 
-    // =========================
-    // Submit (mantém seu fluxo original)
-    // =========================
+    addrModal.addEventListener("click", (e)=>{
+      if(e.target === addrModal) closeAddrModal();
+    });
+
+    // PDF
+    function formatDateBR(d = new Date()){
+      const pad = (n)=> String(n).padStart(2,"0");
+      return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    async function imgToDataUrl(imgEl){
+      const src = imgEl?.getAttribute("src") || "logo.png";
+      const res = await fetch(src, { cache: "no-store" });
+      const blob = await res.blob();
+      return await new Promise((resolve, reject)=>{
+        const reader = new FileReader();
+        reader.onload = ()=> resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function safeText(v){
+      return String(v ?? "").replace(/\s+/g, " ").trim();
+    }
+
+    function wrapText(doc, text, x, y, maxWidth, lineHeight){
+      const lines = doc.splitTextToSize(text, maxWidth);
+      doc.text(lines, x, y);
+      return y + (lines.length * lineHeight);
+    }
+
+    async function downloadComprovantePDF({ pedido_id, solicitante, itens, entrega, anexo_url }){
+      const { jsPDF } = window.jspdf || {};
+      if(!jsPDF){
+        toast("bad", "PDF", "Não consegui carregar o gerador de PDF (jsPDF).");
+        return;
+      }
+
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+
+      const margin = 14;
+      const lineH = 6;
+
+      try{
+        const logoEl = document.getElementById("siteLogo");
+        const dataUrl = await imgToDataUrl(logoEl);
+        doc.addImage(dataUrl, "PNG", margin, 10, 34, 18);
+      }catch(_){}
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text("Comprovante de Pedido", margin + 40, 18);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`Pedido ID: ${pedido_id}`, margin + 40, 24);
+      doc.text(`Data/Hora: ${formatDateBR(new Date())}`, margin + 40, 29);
+
+      doc.setDrawColor(130,45,149);
+      doc.setLineWidth(0.3);
+      doc.line(margin, 34, pageW - margin, 34);
+
+      let y = 42;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Solicitante", margin, y);
+      y += 7;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      y = wrapText(doc, `Nome: ${safeText(solicitante?.nome_solicitante)}`, margin, y, pageW - margin*2, lineH);
+      y = wrapText(doc, `E-mail: ${safeText(solicitante?.email_solicitante)}`, margin, y, pageW - margin*2, lineH);
+      y = wrapText(doc, `Cidade/UF: ${safeText(solicitante?.cidade)} - ${safeText(solicitante?.estado)}`, margin, y, pageW - margin*2, lineH);
+
+      if(safeText(solicitante?.observacao)){
+        y = wrapText(doc, `Observação: ${safeText(solicitante?.observacao)}`, margin, y, pageW - margin*2, lineH);
+      }
+
+      y += 4;
+      doc.setDrawColor(200);
+      doc.line(margin, y, pageW - margin, y);
+      y += 8;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Itens do pedido", margin, y);
+      y += 7;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+
+      (itens || []).forEach((it, idx)=>{
+        const bloco = [
+          `Item ${idx+1}: ${safeText(it?.descricao)}`,
+          `Equipamento: ${safeText(it?.unidade_medida)} | Quantidade: ${safeText(it?.quantidade)}`
+        ];
+
+        if(safeText(it?.observacao_item)){
+          bloco.push(`Obs: ${safeText(it?.observacao_item)}`);
+        }
+
+        if(y > pageH - 30){
+          doc.addPage();
+          y = 20;
+        }
+
+        y = wrapText(doc, bloco.join("  •  "), margin, y, pageW - margin*2, lineH);
+        y += 3;
+      });
+
+      y += 2;
+      doc.setDrawColor(200);
+      doc.line(margin, y, pageW - margin, y);
+      y += 8;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Entrega", margin, y);
+      y += 7;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+
+      const entregaLines = [
+        `Destinatário: ${safeText(entrega?.nome_destinatario)}`,
+        `CPF: ${safeText(entrega?.cpf)}`,
+        `Endereço: ${safeText(entrega?.endereco)}, Nº ${safeText(entrega?.numero)}`,
+        `Complemento: ${safeText(entrega?.complemento || "-")}`,
+        `Bairro: ${safeText(entrega?.bairro)}`,
+        `Cidade/UF: ${safeText(entrega?.cidade)} - ${safeText(entrega?.estado)}`,
+        `CEP: ${safeText(entrega?.cep)}`
+      ];
+
+      entregaLines.forEach((t)=>{
+        if(y > pageH - 30){
+          doc.addPage();
+          y = 20;
+        }
+        y = wrapText(doc, t, margin, y, pageW - margin*2, lineH);
+      });
+
+      if(anexo_url){
+        y += 4;
+        if(y > pageH - 30){
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.text("Anexo (link):", margin, y);
+        doc.setFont("helvetica", "normal");
+        y += 6;
+        y = wrapText(doc, anexo_url, margin, y, pageW - margin*2, lineH);
+      }
+
+      const fileName = `comprovante-pedido-${pedido_id}.pdf`;
+      doc.save(fileName);
+    }
+
+    // BOOT
+    window.addEventListener("DOMContentLoaded", ()=>{
+      addItemBtn.addEventListener("click", addItem);
+      addItem();
+    });
+
+    // Submit
     form.addEventListener("submit", async (e)=>{
       e.preventDefault();
 
       if(!configured()){
-        toast("bad", "Configuração", "SUPABASE_URL / ANON_KEY / EDGE_SEND_EMAIL_URL estão inválidos.");
+        toast("bad", "Configuração", "SUPABASE_URL / ANON KEY / EDGE_SEND_EMAIL_URL estão inválidos.");
         return;
       }
 
@@ -689,7 +1072,6 @@
           cep: String(fd.get("cep")||"").trim(),
         };
 
-        // 1) cria pedido
         const { data: pedidoRow, error: pedidoErr } = await supabaseClient
           .from("pedidos")
           .insert({
@@ -705,7 +1087,6 @@
         if(pedidoErr) throw pedidoErr;
         const pedidoId = pedidoRow.id;
 
-        // 2) itens (mantém sua tabela original)
         const { error: itensErr } = await supabaseClient
           .from("itens_pedido")
           .insert(itens.map(i => ({
@@ -716,13 +1097,11 @@
           })));
         if(itensErr) throw itensErr;
 
-        // 3) entrega
         const { error: entregaErr } = await supabaseClient
           .from("entrega")
           .insert({ ...entrega, pedido_id: pedidoId });
         if(entregaErr) throw entregaErr;
 
-        // 4) upload anexo
         const file = fd.get("anexo");
         let anexo_url = null;
         if(file && file instanceof File && file.size > 0){
@@ -730,8 +1109,15 @@
           await supabaseClient.from("pedidos").update({ diagnostico_url: anexo_url }).eq("id", pedidoId);
         }
 
-        // 5) envia e-mail (Edge Function) — inclui observacao_item no payload
         await postJSON(EDGE_SEND_EMAIL_URL, {
+          pedido_id: pedidoId,
+          solicitante: pedido,
+          itens,
+          entrega,
+          anexo_url
+        });
+
+        await downloadComprovantePDF({
           pedido_id: pedidoId,
           solicitante: pedido,
           itens,
